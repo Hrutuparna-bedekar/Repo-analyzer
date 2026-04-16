@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Repository Analyzer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f4f6f9;
+            --surface: #ffffff;
+            --card: #ffffff;
+            --card-hover: #f0f2f5;
+            --cyan: #0ea5e9;
+            --purple: #8b5cf6;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --green: #22c55e;
+            --teal: #14b8a6;
+            --text: #1e293b;
+            --text-dim: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────── */
+        header {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        header .subtitle {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* ── Input Section ──────────────────── */
+        .input-section {
+            max-width: 700px;
+            margin: 80px auto 40px;
+            padding: 0 24px;
+            text-align: center;
+        }
+
+        .input-section h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .input-section p {
+            color: var(--text-dim);
+            margin-bottom: 32px;
+            font-size: 15px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input:focus {
+            border-color: var(--cyan);
+        }
+
+        .input-row input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn-primary {
+            padding: 14px 28px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, var(--cyan), var(--blue));
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Loading ────────────────────────── */
+        .loading {
+            text-align: center;
+            padding: 60px 24px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* ── Error ──────────────────────────── */
+        .error-box {
+            max-width: 600px;
+            margin: 16px auto;
+            padding: 14px 20px;
+            border-radius: 10px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: var(--red);
+            font-size: 13px;
+        }
+
+        /* ── Dashboard ──────────────────────── */
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .dash-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .dash-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-back:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: var(--shadow);
+            font-weight: 600;
+        }
+
+        /* ── Graph ──────────────────────────── */
+        .graph-container {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .graph-controls {
+            padding: 12px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        .chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chip.active {
+            background: var(--cyan);
+            color: #fff;
+            border-color: var(--cyan);
+        }
+
+        .legend {
+            display: flex;
+            gap: 14px;
+            margin-left: auto;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        canvas#graphCanvas {
+            width: 100%;
+            height: 600px;
+            display: block;
+        }
+
+        /* ── File Explorer ──────────────────── */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .folder-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--orange);
+            padding: 12px 0 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .file-row {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.15s;
+            box-shadow: var(--shadow);
+        }
+
+        .file-row:hover {
+            border-color: var(--cyan);
+            background: #f0f9ff;
+        }
+
+        .file-icon {
+            color: var(--blue);
+            font-size: 16px;
+        }
+
+        .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .file-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .file-meta .classes {
+            color: var(--green);
+        }
+
+        .file-meta .funcs {
+            color: var(--purple);
+        }
+
+        /* ── Inspection ─────────────────────── */
+        .inspection {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .inspect-card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .inspect-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .inspect-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+        }
+
+        .inspect-card h3 .icon {
+            font-size: 16px;
+        }
+
+        .class-item,
+        .func-item {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .class-name {
+            color: var(--green);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .func-name {
+            color: var(--purple);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .bases {
+            color: var(--purple);
+            font-size: 11px;
+        }
+
+        .methods {
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .doc {
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .calls {
+            color: var(--orange);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .import-item {
+            color: var(--cyan);
+            font-size: 12px;
+            padding: 3px 0;
+        }
+
+        /* ── AI Box ──────────────────────────── */
+        .ai-box {
+            background: linear-gradient(135deg, #f0f0ff, #e8f4fd);
+            border: 1px solid #c7d2fe;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .ai-box h3 {
+            font-size: 14px;
+            color: var(--purple);
+            margin-bottom: 10px;
+        }
+
+        .ai-box .content {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        .ai-box .content h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 10px 0 4px;
+        }
+
+        .ai-box .content ul {
+            margin: 4px 0 8px 18px;
+        }
+
+        .ai-box .content li {
+            margin-bottom: 3px;
+        }
+
+        .ai-box .content strong {
+            color: var(--text);
+        }
+
+        /* ── Use Case Diagram ───────────────── */
+        .usecase-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .usecase-section {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .usecase-section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .actor-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .actor-card {
+            background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 180px;
+            transition: transform 0.2s;
+        }
+
+        .actor-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .actor-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .actor-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .usecase-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .usecase-item {
+            background: linear-gradient(135deg, #faf5ff, #f5f3ff);
+            border: 1px solid #ddd6fe;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--text);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            transition: transform 0.2s;
+        }
+
+        .usecase-item:hover {
+            transform: translateX(4px);
+        }
+
+        .usecase-num {
+            background: var(--purple);
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .rel-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .rel-item {
+            background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+            border: 1px solid #a7f3d0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rel-arrow {
+            color: var(--green);
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        /* ── Execution Flow UI ──────────────── */
+        .flow-container {
+            margin-top: 16px;
+            border-left: 2px solid var(--border);
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .flow-step {
+            position: relative;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        .flow-step::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 18px;
+            width: 10px;
+            height: 10px;
+            background: var(--cyan);
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px var(--cyan);
+        }
+
+        .flow-step .func {
+            font-weight: 700;
+            color: var(--blue);
+            font-family: monospace;
+        }
+
+        .flow-step .path {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .flow-explanation {
+            margin-top: 20px;
+            background: #fdfaf3;
+            border: 1px solid #fef3c7;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .btn-flow {
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--cyan);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+
+        .btn-flow:hover {
+            opacity: 0.9;
+        }
+
+        .category-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        canvas#graphCanvas {
+            cursor: grab;
+        }
+
+        canvas#graphCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* ── Responsive ─────────────────────── */
+        @media (max-width: 768px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .input-row {
+                flex-direction: column;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">🔍</div>
+        <div>
+            <h1>AI Repository Analyzer</h1>
+            <div class="subtitle">Architecture visualization powered by Groq AI</div>
+        </div>
+    </header>
+
+    <!-- Input Screen -->
+    <div id="inputScreen" class="input-section">
+        <h2>Analyze any GitHub repo</h2>
+        <p>Paste a public repository URL to explore its architecture</p>
+        <div class="input-row">
+            <input id="repoUrl" type="text" placeholder="https://github.com/user/repo" />
+            <button id="analyzeBtn" class="btn-primary" onclick="startAnalysis()">Analyze</button>
+        </div>
+        <div id="errorBox" class="error-box hidden"></div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingScreen" class="loading hidden">
+        <div class="spinner"></div>
+        <p id="loadingText">Cloning repository and analyzing code...</p>
+        <p style="color: var(--text-muted); margin-top: 8px; font-size: 12px;">This may take 30-60 seconds for larger
+            repos</p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard hidden">
+        <div class="dash-header">
+            <h2 id="repoName"></h2>
+            <button class="btn-back" onclick="resetApp()">← New Analysis</button>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="value" style="color: var(--blue)" id="statFiles">0</div>
+                <div class="label">Files</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="color: var(--green)" id="statClasses">0</div>
+                <div class="label">Classes</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="color: var(--purple)" id="statFunctions">0</div>
+                <div class="label">Functions</div>
+            </div>
+        </div>
+
+        <div class="ai-box" style="margin-bottom: 24px;">
+            <h3>✨ AI Summary</h3>
+            <div class="content" id="aiSummary">Loading...</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('graph', this)">🔗 Architecture Graph</button>
+            <button class="tab" onclick="switchTab('usecases', this)">🎯 Use Cases</button>
+            <button class="tab" onclick="switchTab('files', this)">📁 File Explorer</button>
+            <button class="tab" onclick="switchTab('inspection', this)">🔍 Inspection</button>
+        </div>
+
+        <div id="tab-graph">
+            <div class="graph-container">
+                <div class="graph-controls">
+                    <button class="chip active" onclick="toggleFilter('file', this)">Files</button>
+                    <button class="chip active" onclick="toggleFilter('class', this)">Classes</button>
+                    <button class="chip" onclick="toggleFilter('function', this)">Functions</button>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--red)"></div> Repo
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--orange)"></div> Folder
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--blue)"></div> File
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--green)"></div> Class
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--purple)"></div> Function
+                        </div>
+                    </div>
+                </div>
+                <div
+                    style="font-size: 12px; padding: 8px 16px; color: var(--text-muted); background: #f8fafc; border-bottom: 1px solid var(--border);">
+                    💡 Click any node to jump to its file and AI explanation
+                </div>
+                <canvas id="graphCanvas"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-usecases" class="hidden">
+            <div id="usecaseContent">
+                <div style="text-align: center; padding: 40px; color: var(--text-dim);">
+                    Loading use-case analysis...
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-files" class="hidden">
+            <div class="file-list" id="fileList"></div>
+        </div>
+
+        <div id="tab-inspection" class="hidden">
+            <p id="inspectHint" style="color: var(--text-dim); text-align: center; padding: 40px;">
+                Click a file in the File Explorer or a node in the graph to inspect it
+            </p>
+            <div id="inspectContent" class="hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:8000';
+        let analysisData = null;
+        let graphFilters = { file: true, class: true, function: false, method: false };
+
+        // ── Format LLM Response ────────────────────────
+        function formatAIResponse(text) {
+            if (!text) return '';
+            // Clean markdown symbols and structure the output
+            let html = text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')        // **bold**
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')                     // *italic*
+                .replace(/^### (.+)$/gm, '<h4>$1</h4>')                   // ### heading
+                .replace(/^## (.+)$/gm, '<h4>$1</h4>')                    // ## heading
+                .replace(/^# (.+)$/gm, '<h4>$1</h4>')                     // # heading
+                .replace(/^[-•] (.+)$/gm, '<li>$1</li>')                  // - bullet
+                .replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>')                // 1. numbered
+                .replace(/`([^`]+)`/g, '<code style="background:#e2e8f0;padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');  // inline code
+
+            // Wrap consecutive <li> in <ul>
+            html = html.replace(/((?:<li>.+?<\/li>\s*)+)/g, '<ul>$1</ul>');
+
+            // Convert remaining newlines to <br> (but not inside tags)
+            html = html.replace(/\n(?!<)/g, '<br>');
+
+            // Clean up extra <br>s
+            html = html.replace(/<br>\s*<br>/g, '<br>');
+            html = html.replace(/<br>\s*<(h4|ul)/g, '<$1');
+            html = html.replace(/<\/(h4|ul)>\s*<br>/g, '</$1>');
+
+            return html;
+        }
+
+        // ── API Calls ──────────────────────────────────
+        async function startAnalysis() {
+            const url = document.getElementById('repoUrl').value.trim();
+            if (!url) return;
+            showScreen('loading');
+            hideError();
+
+            try {
+                document.getElementById('loadingText').textContent = 'Cloning repository and analyzing code...';
+                const res = await fetch(`${API}/api/analyze/github`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Analysis failed'); }
+                const summary = await res.json();
+
+                document.getElementById('loadingText').textContent = 'Loading analysis results...';
+                const fullRes = await fetch(`${API}/api/analysis/${summary.id}`);
+                analysisData = await fullRes.json();
+
+                renderDashboard();
+                showScreen('dashboard');
+            } catch (err) {
+                showScreen('input');
+                showError(err.message);
+            }
+        }
+
+        // ── Rendering ──────────────────────────────────
+        function renderDashboard() {
+            const d = analysisData;
+            document.getElementById('repoName').textContent = d.repo_name;
+            document.getElementById('statFiles').textContent = d.total_files;
+            document.getElementById('statClasses').textContent = d.total_classes;
+            document.getElementById('statFunctions').textContent = d.total_functions;
+
+            const summary = d.explanations?.['__repo__'] || 'No AI summary available';
+            document.getElementById('aiSummary').innerHTML = formatAIResponse(summary);
+
+            renderGraph();
+            renderFileList();
+            renderUseCases();
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('fileList');
+            const files = analysisData.files;
+            const grouped = {};
+            files.forEach(f => {
+                const parts = f.path.split('/');
+                const folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '/';
+                if (!grouped[folder]) grouped[folder] = [];
+                grouped[folder].push(f);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(folder => {
+                html += `<div class="folder-header">📁 ${folder}</div>`;
+                grouped[folder].forEach(f => {
+                    const name = f.path.split('/').pop();
+                    html += `
+                <div class="file-row" onclick="inspectFile('${f.path}')">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name">${name}</span>
+                    <div class="file-meta">
+                        <span>${f.line_count} lines</span>
+                        ${f.classes.length ? `<span class="classes">${f.classes.length} classes</span>` : ''}
+                        ${f.functions.length ? `<span class="funcs">${f.functions.length} funcs</span>` : ''}
+                    </div>
+                </div>`;
+                });
+            });
+            container.innerHTML = html;
+        }
+
+        function inspectFile(path) {
+            switchTab('inspection', document.querySelectorAll('.tab')[2]);
+            const file = analysisData.files.find(f => f.path === path);
+            if (!file) return;
+
+            document.getElementById('inspectHint').classList.add('hidden');
+            const container = document.getElementById('inspectContent');
+            container.classList.remove('hidden');
+
+            const allFiles = analysisData.files;
+            const fileName = path.split('/').pop().replace('.py', '');
+            const importedBy = [];
+            const importsFrom = [];
+            allFiles.forEach(f => {
+                if (f.path === path) return;
+                f.imports.forEach(imp => { if (imp.includes(fileName)) importedBy.push(f.path); });
+            });
+            file.imports.forEach(imp => {
+                const m = allFiles.find(f => f.path !== path && imp.includes(f.path.split('/').pop().replace('.py', '')));
+                if (m) importsFrom.push(m.path);
+            });
+
+            const explanation = analysisData.explanations?.[path] || null;
+            let html = '';
+
+            // File header
+            html += `<div style="background: var(--card); border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: var(--shadow);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <span style="font-size: 24px;">📄</span>
+            <div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--blue);">${path.split('/').pop()}</div>
+                <div style="font-size: 12px; color: var(--text-muted);">📍 ${path}</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;">
+            <span style="padding: 4px 10px; border-radius: 12px; background: #dbeafe; color: var(--blue);">${file.line_count} lines</span>
+            <span style="padding: 4px 10px; border-radius: 12px; background: #dcfce7; color: var(--green);">${file.classes.length} classes</span>
+            <span style="padding: 4px 10px; border-radius: 12px; background: #ede9fe; color: var(--purple);">${file.functions.length} functions</span>
+            <span style="padding: 4px 10px; border-radius: 12px; background: #e0f2fe; color: var(--cyan);">${file.imports.length} imports</span>
+        </div>
+        ${importedBy.length ? `<div style="margin-top: 10px; font-size: 11px; color: var(--orange);">🔗 Used by: ${importedBy.map(p => '<span onclick="inspectFile(' + "'" + p + "'" + ')" style="cursor:pointer;text-decoration:underline;font-weight:500;">' + p.split('/').pop() + '</span>').join(', ')}</div>` : ''}
+        ${importsFrom.length ? `<div style="margin-top: 4px; font-size: 11px; color: var(--cyan);">📥 Depends on: ${importsFrom.map(p => '<span onclick="inspectFile(' + "'" + p + "'" + ')" style="cursor:pointer;text-decoration:underline;font-weight:500;">' + p.split('/').pop() + '</span>').join(', ')}</div>` : ''}
+    </div>`;
+
+            // AI explanation
+            html += `<div class="ai-box" style="margin-bottom: 16px;">
+        <h3>✨ AI Explanation</h3>
+        <div class="content" id="fileExplanation">${explanation ? formatAIResponse(explanation) : '<em>Generating explanation with Groq AI...</em>'}</div>
+    </div>`;
+
+            html += `<div class="inspection">`;
+
+            // Classes
+            if (file.classes.length > 0) {
+                html += `<div class="inspect-card full-width"><h3><span class="icon">🏗️</span> Classes (${file.classes.length})</h3>`;
+                file.classes.forEach(cls => {
+                    const has = cls.bases?.length > 0;
+                    html += `<div class="class-item" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="font-size: 15px; font-weight: 600; color: var(--green);">class ${cls.name}</div>
+                    ${has ? '<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#ede9fe;color:var(--purple);">inherits</span>' : ''}
+                </div>
+                ${has ? `<div style="font-size: 12px; color: var(--purple); margin-bottom: 4px;">↳ Extends: <strong>${cls.bases.join(', ')}</strong></div>` : ''}
+                ${cls.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; margin-bottom: 6px; padding: 6px 10px; border-left: 3px solid var(--green); background: #f0fdf4; border-radius: 0 6px 6px 0;">"${cls.docstring}"</div>` : ''}
+                ${cls.methods?.length ? `<div style="margin-top: 6px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">📋 Methods (${cls.methods.length}):</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${cls.methods.map(m => `<span style="font-size:11px;padding:3px 8px;border-radius:6px;background:#f5f3ff;color:var(--purple);font-family:monospace;border:1px solid #e9e5ff;">${m}()</span>`).join('')}
+                    </div>
+                </div>` : ''}
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">📍 Defined in ${path}</div>
+            </div>`;
+                });
+                html += `</div>`;
+            }
+
+            // Functions
+            if (file.functions.length > 0) {
+                const topLevel = file.functions.filter(f => !f.is_method);
+                const methods = file.functions.filter(f => f.is_method);
+
+                if (topLevel.length > 0) {
+                    html += `<div class="inspect-card full-width"><h3><span class="icon">⚡</span> Top-Level Functions (${topLevel.length})</h3>`;
+                    topLevel.forEach(fn => {
+                        const args = fn.args?.join(', ') || '';
+                        const ret = fn.returns || 'None';
+                        html += `<div class="func-item" style="margin-bottom: 12px;">
+                    <div style="font-family: monospace; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <span style="color: var(--purple); font-weight: 600;">def</span>
+                            <span style="color: var(--text); font-weight: 600;"> ${fn.name}</span><span style="color: var(--text-dim);">(${args})</span>
+                            <span style="color: var(--cyan);"> → ${ret}</span>
+                        </div>
+                        <button class="btn-flow" onclick="traceFlow('${fn.name}', '${path}')">Trace Flow ⚡</button>
+                    </div>
+                    <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
+                    ${fn.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; padding: 6px 10px; border-left: 3px solid var(--purple); background: #faf5ff; border-radius: 0 6px 6px 0; margin-bottom: 4px;">"${fn.docstring}"</div>` : ''}
+                    ${fn.calls?.length ? `<div style="font-size: 11px; margin-top: 4px;">
+                        <span style="color: var(--text-muted);">📞 Calls:</span>
+                        ${fn.calls.slice(0, 15).map(c => `<span style="font-size:11px;padding:2px 6px;border-radius:4px;margin:1px;display:inline-block;background:#e0f2fe;color:var(--cyan);font-family:monospace;">${c}()</span>`).join('')}
+                    </div>` : ''}
+                </div>`;
+                    });
+                    html += `</div>`;
+                }
+
+                if (methods.length > 0) {
+                    html += `<div class="inspect-card full-width"><h3><span class="icon">🔧</span> Methods (${methods.length})</h3>`;
+                    methods.forEach(fn => {
+                        const args = fn.args?.filter(a => a !== 'self' && a !== 'cls').join(', ') || '';
+                        const ret = fn.returns || 'None';
+                        html += `<div class="func-item" style="margin-bottom: 8px;">
+                    <div style="font-family:monospace;font-size:12px;">
+                        <span style="color:var(--purple);">def</span>
+                        <span style="color:var(--text);"> ${fn.name}</span><span style="color:var(--text-dim);">(${args})</span>
+                        <span style="color:var(--cyan);"> → ${ret}</span>
+                        <button class="btn-flow" onclick="traceFlow('${fn.name}', '${path}')">Trace Flow ⚡</button>
+                    </div>
+                    <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
+                    ${fn.docstring ? `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">"${fn.docstring}"</div>` : ''}
+                </div>`;
+                    });
+                    html += `</div>`;
+                }
+            }
+
+            // Imports
+            if (file.imports.length > 0) {
+                const stdlibKeywords = ['os', 'sys', 'json', 'logging', 'typing', 'pathlib', 'datetime', 'collections', 'abc', 'asyncio', 'functools', 'itertools', 're', 'math', 'hashlib', 'uuid', 'io', 'enum', 'dataclasses', 'copy', 'time', 'traceback', 'inspect', 'textwrap', 'subprocess', 'threading', 'unittest', '__future__'];
+                const internal = [], external = [], stdlib = [];
+                file.imports.forEach(imp => {
+                    const mod = imp.replace('from ', '').replace('import ', '').split('.')[0].split(' ')[0];
+                    if (allFiles.some(f => f.path.includes(mod))) internal.push(imp);
+                    else if (stdlibKeywords.includes(mod)) stdlib.push(imp);
+                    else external.push(imp);
+                });
+
+                html += `<div class="inspect-card full-width"><h3><span class="icon">📦</span> Dependencies (${file.imports.length})</h3>`;
+                if (internal.length) {
+                    html += `<div style="margin-bottom: 8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">🏠 Internal (this project):</div>
+                ${internal.map(i => `<div style="padding:3px 0;font-size:12px;color:var(--cyan);font-family:monospace;">${i}</div>`).join('')}</div>`;
+                }
+                if (external.length) {
+                    html += `<div style="margin-bottom: 8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">📦 External packages:</div>
+                ${external.map(i => `<div style="padding:3px 0;font-size:12px;color:var(--orange);font-family:monospace;">${i}</div>`).join('')}</div>`;
+                }
+                if (stdlib.length) {
+                    html += `<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">🐍 Python stdlib:</div>
+                ${stdlib.map(i => `<div style="padding:3px 0;font-size:12px;color:var(--text-dim);font-family:monospace;">${i}</div>`).join('')}</div>`;
+                }
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+            if (!explanation) loadExplanation(path);
+        }
+
+        async function loadExplanation(path) {
+            const el = document.getElementById('fileExplanation');
+            try {
+                // Try structured explanation first
+                const res = await fetch(`${API}/api/analysis/${analysisData.id}/explain-element`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: path.split('/').pop(), file_path: path, element_type: 'module' })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    renderStructuredExplanation(el, data);
+                } else {
+                    // Fallback to legacy explanation
+                    const res2 = await fetch(`${API}/api/analysis/${analysisData.id}/explain/${encodeURIComponent(path)}`);
+                    const data2 = await res2.json();
+                    if (el) el.innerHTML = formatAIResponse(data2.explanation);
+                }
+            } catch (e) {
+                if (el) el.textContent = 'Could not load explanation.';
+            }
+        }
+
+        function renderStructuredExplanation(container, data) {
+            const cats = {
+                'Core Logic': { bg: '#fee2e2', text: '#991b1b' },
+                'Utility': { bg: '#fef3c7', text: '#92400e' },
+                'API Layer': { bg: '#dcfce7', text: '#166534' },
+                'Data Handling': { bg: '#dbeafe', text: '#1e40af' },
+                'Configuration': { bg: '#f3f4f6', text: '#374151' }
+            };
+            const c = cats[data.category] || cats['Core Logic'];
+
+            container.innerHTML = `
+                <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <span class="category-badge" style="background: ${c.bg}; color: ${c.text};">${data.category}</span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-weight: 700; color: var(--text); font-size: 14px; margin-bottom: 4px;">🎯 Purpose</div>
+                    <div style="color: var(--text-dim);">${data.purpose}</div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-weight: 700; color: var(--text); font-size: 14px; margin-bottom: 4px;">🛠️ Role in System</div>
+                    <div style="color: var(--text-dim);">${data.role}</div>
+                </div>
+                ${data.notes ? `
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                    <div style="font-weight: 700; color: var(--text); font-size: 12px; margin-bottom: 2px;">💡 Notes</div>
+                    <div style="color: var(--text-dim); font-size: 12px;">${data.notes}</div>
+                </div>` : ''}
+            `;
+        }
+
+        async function traceFlow(funcName, filePath) {
+            const elId = `flow-${funcName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const el = document.getElementById(elId);
+            el.classList.remove('hidden');
+            el.innerHTML = '<div style="font-size:11px; color:var(--text-muted); padding:10px;">Tracing call path with AI...</div>';
+
+            try {
+                const res = await fetch(`${API}/api/analysis/${analysisData.id}/execution-flow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ start_function: funcName, file_path: filePath })
+                });
+
+                if (!res.ok) throw new Error('Flow trace failed');
+
+                const data = await res.json();
+                let html = '<div class="flow-container">';
+
+                data.call_path.forEach(step => {
+                    const parts = step.split('  ');
+                    const func = parts[0];
+                    const path = parts.length > 1 ? parts[1] : '';
+                    html += `
+                        <div class="flow-step">
+                            <div class="func">${func}</div>
+                            <div class="path">${path}</div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>
+                    <div class="flow-explanation">
+                        <div style="font-weight:700; margin-bottom: 8px;">✨ Flow Analysis</div>
+                        <div style="white-space: pre-wrap;">${data.flow_explanation}</div>
+                    </div>
+                    <button class="btn-back" style="margin-top: 10px; font-size: 11px; padding: 4px 8px;" onclick="document.getElementById('${elId}').classList.add('hidden')">Close Trace</button>
+                `;
+                el.innerHTML = html;
+            } catch (err) {
+                el.innerHTML = '<div style="color:var(--red); font-size: 11px; padding: 10px;">Trace failed. This function might not have internal calls.</div>';
+            }
+        }
+
+        // ── Graph (with arrows) ────────────────────────
+
+        let graphState = { offsetX: 0, offsetY: 0, scale: 1, dragging: false, lastMouse: null };
+
+        let graphPositions = {};  // Store positions for click detection
+
+        function initGraphInteraction() {
+            const canvas = document.getElementById('graphCanvas');
+            let dragStartPos = null;
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                graphState.scale = Math.max(0.15, Math.min(4, graphState.scale * (e.deltaY > 0 ? 0.9 : 1.1)));
+                renderGraph();
+            });
+            canvas.addEventListener('mousedown', (e) => {
+                graphState.dragging = true;
+                graphState.lastMouse = { x: e.clientX, y: e.clientY };
+                dragStartPos = { x: e.clientX, y: e.clientY };
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                if (!graphState.dragging || !graphState.lastMouse) return;
+                graphState.offsetX += e.clientX - graphState.lastMouse.x;
+                graphState.offsetY += e.clientY - graphState.lastMouse.y;
+                graphState.lastMouse = { x: e.clientX, y: e.clientY };
+                renderGraph();
+            });
+            canvas.addEventListener('mouseup', (e) => {
+                graphState.dragging = false;
+                // Only trigger click if not a drag
+                if (dragStartPos && Math.abs(e.clientX - dragStartPos.x) < 5 && Math.abs(e.clientY - dragStartPos.y) < 5) {
+                    handleGraphClick(e);
+                }
+                dragStartPos = null;
+            });
+            canvas.addEventListener('mouseleave', () => { graphState.dragging = false; dragStartPos = null; });
+        }
+
+        function handleGraphClick(e) {
+            const canvas = document.getElementById('graphCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const W = rect.width, H = 600;
+            const scale = graphState.scale;
+            const ox = graphState.offsetX + W / 2;
+            const oy = graphState.offsetY + H / 2;
+            const typeRadius = { repository: 22, folder: 14, file: 9, class: 11, function: 7, method: 7 };
+
+            const graph = analysisData?.graph;
+            if (!graph) return;
+
+            // Find which node was clicked
+            for (const node of graph.nodes) {
+                const pos = graphPositions[node.id];
+                if (!pos) continue;
+                const sx = ox + pos.x * scale;
+                const sy = oy + pos.y * scale;
+                const r = (typeRadius[node.type] || 8) * Math.min(scale, 2);
+                const clickR = Math.max(r, 12); // Minimum click area
+
+                const dist = Math.sqrt((mouseX - sx) ** 2 + (mouseY - sy) ** 2);
+                if (dist <= clickR) {
+                    navigateToNode(node);
+                    return;
+                }
+            }
+        }
+
+        function navigateToNode(node) {
+            // Extract file path from node ID
+            let filePath = null;
+
+            if (node.type === 'file') {
+                filePath = node.id.replace('file::', '');
+            } else if (node.type === 'class' || node.type === 'function' || node.type === 'method') {
+                // Format: "class::path/to/file.py::ClassName" or "function::path/to/file.py::funcName"
+                const parts = node.id.split('::');
+                if (parts.length >= 2) filePath = parts[1];
+            } else if (node.type === 'folder') {
+                // Find the first file in this folder
+                const folderPath = node.id.replace('folder::', '');
+                const file = analysisData.files.find(f => f.path.startsWith(folderPath + '/'));
+                if (file) filePath = file.path;
+            }
+
+            if (filePath && analysisData.files.find(f => f.path === filePath)) {
+                inspectFile(filePath);
+            }
+        }
+
+        function drawArrow(ctx, x1, y1, x2, y2, color, lineWidth) {
+            const headLen = 8 * Math.min(graphState.scale, 1.5);
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+
+            // Line
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+
+            // Arrowhead
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function renderGraph() {
+            const canvas = document.getElementById('graphCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const W = rect.width, H = 600;
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            canvas.style.height = H + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Light background
+            ctx.fillStyle = '#fafbfc';
+            ctx.fillRect(0, 0, W, H);
+
+            // Grid dots
+            const gridSize = 30;
+            ctx.fillStyle = '#e2e8f0';
+            for (let x = 0; x < W; x += gridSize) for (let y = 0; y < H; y += gridSize) {
+                ctx.beginPath(); ctx.arc(x, y, 0.5, 0, Math.PI * 2); ctx.fill();
+            }
+
+            const graph = analysisData?.graph;
+            if (!graph) return;
+
+            const vis = new Set(['repository', 'folder']);
+            if (graphFilters.file) vis.add('file');
+            if (graphFilters.class) vis.add('class');
+            if (graphFilters.function) { vis.add('function'); vis.add('method'); }
+
+            const visibleNodes = graph.nodes.filter(n => vis.has(n.type));
+            const visibleIds = new Set(visibleNodes.map(n => n.id));
+            const visibleEdges = graph.edges.filter(e => visibleIds.has(e.source) && visibleIds.has(e.target));
+
+            if (visibleNodes.length === 0) {
+                ctx.fillStyle = '#94a3b8'; ctx.font = '14px Inter'; ctx.textAlign = 'center';
+                ctx.fillText('No nodes to display. Toggle filters above.', W / 2, H / 2);
+                return;
+            }
+
+            const positions = computeLayout(visibleNodes, visibleEdges, W, H);
+            const scale = graphState.scale;
+            const ox = graphState.offsetX + W / 2;
+            const oy = graphState.offsetY + H / 2;
+
+            const typeRadius = { repository: 22, folder: 14, file: 9, class: 11, function: 7, method: 7 };
+
+            // Draw edges WITH ARROWS
+            visibleEdges.forEach(edge => {
+                const from = positions[edge.source];
+                const to = positions[edge.target];
+                if (!from || !to) return;
+
+                const x1 = ox + from.x * scale, y1 = oy + from.y * scale;
+                const x2 = ox + to.x * scale, y2 = oy + to.y * scale;
+
+                // Shorten line so arrow doesn't overlap the node
+                const fromNode = visibleNodes.find(n => n.id === edge.source);
+                const toNode = visibleNodes.find(n => n.id === edge.target);
+                const toR = (typeRadius[toNode?.type] || 8) * Math.min(scale, 2);
+                const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                if (dist < 1) return;
+                const ratio = (dist - toR - 2) / dist;
+                const ax2 = x1 + (x2 - x1) * ratio;
+                const ay2 = y1 + (y2 - y1) * ratio;
+
+                const edgeColors = {
+                    contains: '#94a3b8', imports: '#0ea5e9', inherits: '#8b5cf6',
+                    calls: '#f59e0b', defines: '#94a3b8',
+                };
+                const edgeAlpha = {
+                    contains: 0.25, imports: 0.7, inherits: 0.7, calls: 0.5, defines: 0.2,
+                };
+
+                const color = edgeColors[edge.relationship] || '#94a3b8';
+                const alpha = edgeAlpha[edge.relationship] || 0.2;
+                ctx.globalAlpha = alpha;
+                const lw = (edge.relationship === 'imports' || edge.relationship === 'inherits') ? 2 : 1;
+                drawArrow(ctx, x1, y1, ax2, ay2, color, lw * Math.min(scale, 1.5));
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw nodes
+            const typeColors = {
+                repository: '#ef4444', folder: '#f59e0b', file: '#3b82f6',
+                class: '#22c55e', function: '#8b5cf6', method: '#14b8a6',
+            };
+
+            visibleNodes.forEach(node => {
+                const pos = positions[node.id];
+                if (!pos) return;
+                const sx = ox + pos.x * scale;
+                const sy = oy + pos.y * scale;
+                const color = typeColors[node.type] || '#999';
+                const r = (typeRadius[node.type] || 8) * Math.min(scale, 2);
+
+                if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) return;
+
+                // Shadow
+                ctx.beginPath(); ctx.arc(sx + 1, sy + 1, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fill();
+
+                // Fill
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                ctx.fillStyle = color; ctx.fill();
+
+                // White border
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+                // Label
+                if (scale > 0.35) {
+                    const maxLen = Math.floor(16 / Math.min(scale, 1));
+                    let label = node.label;
+                    if (label.length > maxLen) label = label.slice(0, maxLen - 2) + '..';
+                    ctx.fillStyle = '#1e293b';
+                    ctx.font = `${Math.max(8, 10 * Math.min(scale, 1.2))}px Inter, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, sx, sy - r - 5 * scale);
+                }
+            });
+
+            // Store positions for click detection
+            graphPositions = positions;
+
+            ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+            ctx.fillText(`Scroll to zoom · Drag to pan · Click node to inspect · ${visibleNodes.length} nodes`, 12, H - 12);
+        }
+
+        function computeLayout(nodes, edges, W, H) {
+            const positions = {};
+            const layers = ['repository', 'folder', 'file', 'class', 'function', 'method'];
+            let currentY = -200;
+
+            layers.forEach(layerType => {
+                const layerNodes = nodes.filter(n => n.type === layerType);
+                if (layerNodes.length === 0) return;
+                const count = layerNodes.length;
+
+                if (layerType === 'repository') {
+                    layerNodes.forEach(n => { positions[n.id] = { x: 0, y: currentY }; });
+                    currentY += 80;
+                    return;
+                }
+
+                if (count <= 12) {
+                    const arcSpan = Math.min(Math.PI * 0.8, count * 0.25);
+                    const radius = 60 + count * 18;
+                    const startAngle = -Math.PI / 2 - arcSpan / 2;
+                    layerNodes.forEach((n, i) => {
+                        const angle = startAngle + (count > 1 ? (i / (count - 1)) * arcSpan : 0);
+                        positions[n.id] = { x: Math.cos(angle) * radius, y: currentY + Math.sin(angle) * radius * 0.3 };
+                    });
+                    currentY += 100 + count * 3;
+                } else {
+                    const cols = Math.ceil(Math.sqrt(count * 2.5));
+                    const sX = Math.max(70, 500 / cols), sY = 55;
+                    const totalW = cols * sX;
+                    const startX = -totalW / 2 + sX / 2;
+                    layerNodes.forEach((n, i) => {
+                        const col = i % cols, row = Math.floor(i / cols);
+                        positions[n.id] = { x: startX + col * sX + (row % 2 === 1 ? sX * 0.3 : 0), y: currentY + row * sY };
+                    });
+                    currentY += Math.ceil(count / cols) * sY + 50;
+                }
+            });
+            return positions;
+        }
+
+        document.addEventListener('DOMContentLoaded', initGraphInteraction);
+
+        // ── UI Helpers ─────────────────────────────────
+        function showScreen(name) {
+            document.getElementById('inputScreen').classList.toggle('hidden', name !== 'input');
+            document.getElementById('loadingScreen').classList.toggle('hidden', name !== 'loading');
+            document.getElementById('dashboard').classList.toggle('hidden', name !== 'dashboard');
+        }
+
+        function showError(msg) { const el = document.getElementById('errorBox'); el.textContent = msg; el.classList.remove('hidden'); }
+        function hideError() { document.getElementById('errorBox').classList.add('hidden'); }
+
+        function switchTab(name, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            ['graph', 'usecases', 'files', 'inspection'].forEach(t => document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name));
+        }
+
+        function toggleFilter(type, el) {
+            graphFilters[type] = !graphFilters[type];
+            if (type === 'function') graphFilters.method = graphFilters.function;
+            el.classList.toggle('active');
+            renderGraph();
+        }
+
+        function resetApp() { analysisData = null; document.getElementById('repoUrl').value = ''; showScreen('input'); }
+
+        // ── Use Cases Rendering ────────────────────────
+        function renderUseCases() {
+            const container = document.getElementById('usecaseContent');
+            const raw = analysisData?.explanations?.['__use_cases__'];
+
+            if (!raw) {
+                // Try loading from API
+                loadUseCases();
+                return;
+            }
+
+            renderUseCaseContent(raw);
+        }
+
+        async function loadUseCases() {
+            const container = document.getElementById('usecaseContent');
+            try {
+                const res = await fetch(`${API}/api/analysis/${analysisData.id}/use-cases`);
+                if (res.ok) {
+                    const data = await res.json();
+                    renderUseCaseParsed(data);
+                } else {
+                    container.innerHTML = `<div class="ai-box"><h3>🎯 Use Cases</h3><div class="content">${formatAIResponse(analysisData?.explanations?.['__repo__'] || 'Use case analysis not available.')}</div></div>`;
+                }
+            } catch (e) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);">Could not load use-case analysis.</div>';
+            }
+        }
+
+        function renderUseCaseContent(raw) {
+            // Parse the raw text into sections
+            const lines = raw.split('\n');
+            let actors = [], useCases = [], relationships = [];
+            let section = null;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const lower = trimmed.toLowerCase();
+                if (lower.startsWith('actors:') || lower.startsWith('actors')) { section = 'actors'; return; }
+                if (lower.startsWith('use cases:') || lower.startsWith('use cases')) { section = 'usecases'; return; }
+                if (lower.startsWith('relationships:') || lower.startsWith('relationships')) { section = 'rel'; return; }
+
+                const clean = trimmed.replace(/^[-•*\d.)]+\s*/, '').trim();
+                if (!clean) return;
+
+                if (section === 'actors') actors.push(clean);
+                else if (section === 'usecases') useCases.push(clean);
+                else if (section === 'rel') relationships.push(clean);
+            });
+
+            renderUseCaseParsed({ actors, use_cases: useCases, relationships, raw_explanation: raw });
+        }
+
+        function renderUseCaseParsed(data) {
+            const container = document.getElementById('usecaseContent');
+            const actorIcons = ['👤', '🛡️', '🌐', '🤖', '📱', '💻', '🔌', '⚙️'];
+
+            let html = '<div class="usecase-container">';
+
+            // Actors section
+            if (data.actors && data.actors.length > 0) {
+                html += '<div class="usecase-section"><h3>👤 Actors</h3><div class="actor-grid">';
+                data.actors.forEach((actor, i) => {
+                    const icon = actorIcons[i % actorIcons.length];
+                    const parts = actor.split(':');
+                    const name = parts[0].trim();
+                    const desc = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+                    html += `<div class="actor-card">
+                        <div class="actor-icon">${icon}</div>
+                        <div>
+                            <div class="actor-name">${name}</div>
+                            ${desc ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${desc}</div>` : ''}
+                        </div>
+                    </div>`;
+                });
+                html += '</div></div>';
+            }
+
+            // Use Cases section
+            if (data.use_cases && data.use_cases.length > 0) {
+                html += '<div class="usecase-section"><h3>🎯 Use Cases</h3><div class="usecase-list">';
+                data.use_cases.forEach((uc, i) => {
+                    const parts = uc.split(':');
+                    const title = parts[0].trim();
+                    const desc = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+                    html += `<div class="usecase-item">
+                        <div class="usecase-num">${i + 1}</div>
+                        <div>
+                            <div style="font-weight:600;color:var(--text);">${title}</div>
+                            ${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${desc}</div>` : ''}
+                        </div>
+                    </div>`;
+                });
+                html += '</div></div>';
+            }
+
+            // Relationships section
+            if (data.relationships && data.relationships.length > 0) {
+                html += '<div class="usecase-section"><h3>🔗 Relationships</h3><div class="rel-grid">';
+                data.relationships.forEach(rel => {
+                    html += `<div class="rel-item"><span class="rel-arrow">→</span> ${rel}</div>`;
+                });
+                html += '</div></div>';
+            }
+
+            // Raw explanation fallback
+            if ((!data.actors || data.actors.length === 0) && data.raw_explanation) {
+                html += `<div class="ai-box"><h3>🎯 Use Case Analysis</h3><div class="content">${formatAIResponse(data.raw_explanation)}</div></div>`;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        document.getElementById('repoUrl').addEventListener('keydown', e => { if (e.key === 'Enter') startAnalysis(); });
+    </script>
+</body>
+
+</html>
