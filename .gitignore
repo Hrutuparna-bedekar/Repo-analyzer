@@ -35,11 +35,11 @@ backend/venv/
 
 # Node.js / Mobile
 node_modules/
-mobile/node_modules/
+myApp/node_modules/
 .expo/
-mobile/.expo/
+myApp/.expo/
 web-build/
-mobile/web-build/
+myApp/web-build/
 /ios
 /android
 
