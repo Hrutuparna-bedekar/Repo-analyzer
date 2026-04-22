@@ -42,7 +42,7 @@ _client: Groq | None = None
 SYSTEM_PROMPT = (
     "You are a senior software architect specialized in code analysis. "
     "You produce concise, structured explanations. Follow these constraints strictly:\n"
-    "- Keep each section under 150 words.\n"
+    "- Provide a very brief summary (max 6-7 lines total).\n"
     "- Do NOT repeat function signatures or raw input.\n"
     "- Do NOT hallucinate or invent missing logic.\n"
     "- If context is insufficient, state: 'Insufficient context'.\n"
@@ -140,7 +140,7 @@ File listing:
 Classes found:
 {class_list}
 
-Provide:
+Provide a brief summary (max 7 lines):
 1. What this project does (purpose)
 2. High-level architecture overview
 3. Key modules and their responsibilities
@@ -341,7 +341,7 @@ Flow Explanation:
 Rules:
 - Describe each step clearly
 - Explain transitions between components
-- Keep total explanation under 150 words
+- Keep total explanation under 6-7 lines
 """
     return _ask(prompt, max_tokens=800)
 

@@ -1,209 +1,250 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { analyzeRepo, getUseCases, getRepoExplanation } from '../../src/api/client';
+import { 
+  StyleSheet, TextInput, View, Text, TouchableOpacity, 
+  ActivityIndicator, Alert, ScrollView, Dimensions,
+  KeyboardAvoidingView, Platform
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { analyzeRepo } from '../../src/api/client';
+import PremiumBackground from '@/components/premium-background';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const [url, setUrl] = useState('https://github.com/pallets/flask');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [useCases, setUseCases] = useState<any>(null);
-  const [repoExplanation, setRepoExplanation] = useState<any>(null);
+  const [loadingStep, setLoadingStep] = useState('');
+  const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'dark';
+  const theme = Colors[colorScheme];
 
   const handleAnalyze = async () => {
     if (!url) return;
     setLoading(true);
-    setResult(null);
-    setUseCases(null);
-    setRepoExplanation(null);
+    setLoadingStep('Initializing AI engines...');
+    
     try {
+      setLoadingStep('Cloning repository...');
       const data = await analyzeRepo(url);
-      setResult(data);
       
-      try {
-        const cases = await getUseCases(data.id);
-        setUseCases(cases);
-      } catch(e) {
-        console.warn('Use cases omitted');
-      }
+      setLoadingStep('Finalizing architecture map...');
+      setTimeout(() => {
+        setLoading(false);
+        router.push({
+          pathname: '/analysis',
+          params: { id: data.id, repo_name: data.repo_name }
+        });
+      }, 1000);
 
-      try {
-        const expl = await getRepoExplanation(data.id);
-        setRepoExplanation(expl);
-      } catch(e) {
-        console.warn('Repo explanation omitted');
-      }
-
-      Alert.alert('Success', 'Repository analyzed successfully!');
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Error', error.response?.data?.detail || error.message || 'Something went wrong');
-    } finally {
+      Alert.alert('Analysis Failed', error.response?.data?.detail || error.message || 'Something went wrong');
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Repo Analyzer 🚀</Text>
-      <Text style={styles.subtitle}>Enter a GitHub URL to dissect its architecture using AI.</Text>
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="https://github.com/someone/repo"
-          placeholderTextColor="#666"
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={handleAnalyze} 
-        disabled={loading}
+    <PremiumBackground>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Analyze Repository</Text>
-        )}
-      </TouchableOpacity>
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroSection}>
+            <View style={styles.navHeader}>
+              <View style={styles.logoRow}>
+                <View style={styles.logoDot} />
+                <Text style={styles.navTitle}>AI Repository Analyzer</Text>
+              </View>
+            </View>
 
-      {result && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Result for {result.repo_name}</Text>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total Files:</Text>
-            <Text style={styles.statValue}>{result.total_files}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total Classes:</Text>
-            <Text style={styles.statValue}>{result.total_classes}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total Functions:</Text>
-            <Text style={styles.statValue}>{result.total_functions}</Text>
-          </View>
-        </View>
-      )}
+            <View style={styles.heroContent}>
+              <Text style={styles.heroH1}>Understand any codebase in seconds</Text>
+              <Text style={styles.heroP}>
+                Powerful AI-driven repository analysis and architecture visualization.
+              </Text>
+              
+              <View style={styles.inputContainer}>
+                <View style={styles.inputWrapper}>
+                  <MaterialCommunityIcons name="github" color="#64748b" size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.heroInput}
+                    placeholder="Enter GitHub Repository URL"
+                    placeholderTextColor="#64748b"
+                    value={url}
+                    onChangeText={setUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.heroButton, loading && styles.buttonDisabled]} 
+                  onPress={handleAnalyze} 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#05070f" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.heroButtonText}>Analyze Repository</Text>
+                      <MaterialCommunityIcons name="arrow-right" color="#05070f" size={20} />
+                    </>
+                  )}
+                </TouchableOpacity>
+                
+                {loading && (
+                  <Text style={styles.loadingStepText}>{loadingStep}</Text>
+                )}
+              </View>
+            </View>
 
-      {repoExplanation && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Architecture Insight 🧠</Text>
-          <Text style={styles.explanationText}>{repoExplanation.explanation}</Text>
-        </View>
-      )}
-
-      {useCases && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>System Actors 🎭</Text>
-          {useCases.actors?.map((actor: string, i: number) => (
-            <Text key={i} style={styles.listItem}>• {actor}</Text>
-          ))}
-          
-          <Text style={[styles.cardTitle, {marginTop: 16}]}>Extracted Use Cases ⚙️</Text>
-          {useCases.use_cases?.map((uc: string, i: number) => (
-            <Text key={i} style={styles.listItem}>• {uc}</Text>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+            <View style={styles.featurePreview}>
+              <View style={styles.featItem}>
+                <MaterialCommunityIcons name="code-tags" color={theme.cyan} size={22} />
+                <Text style={styles.featText}>Interactive Graph</Text>
+              </View>
+              <View style={styles.featItem}>
+                <MaterialCommunityIcons name="console" color={theme.purple} size={22} />
+                <Text style={styles.featText}>Logic Tracing</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PremiumBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A', // Premium dark mode background
   },
   content: {
-    padding: 24,
+    paddingBottom: 40,
+  },
+  navHeader: {
     paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#00e5ff',
+    shadowColor: '#00e5ff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  navTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#F8FAFC',
-    marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  subtitle: {
+  heroSection: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
+  },
+  heroContent: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  heroH1: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: '#F8FAFC',
+    textAlign: 'center',
+    lineHeight: 52,
+    marginBottom: 20,
+  },
+  heroP: {
     fontSize: 16,
     color: '#94A3B8',
-    marginBottom: 32,
-    lineHeight: 24,
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 40,
+    paddingHorizontal: 10,
   },
   inputContainer: {
-    marginBottom: 24,
+    width: '100%',
+    gap: 16,
   },
-  input: {
-    backgroundColor: '#1E293B',
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(13, 17, 23, 0.8)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 64,
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  heroInput: {
+    flex: 1,
     color: '#F8FAFC',
     fontSize: 16,
   },
-  button: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    padding: 16,
+  heroButton: {
+    backgroundColor: '#00e5ff',
+    height: 64,
+    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#3B82F6',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#00e5ff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+  heroButtonText: {
+    color: '#05070f',
+    fontSize: 18,
+    fontWeight: '800',
   },
-  card: {
-    marginTop: 32,
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#334155',
+  loadingStepText: {
+    color: '#00e5ff',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F8FAFC',
-    marginBottom: 16,
-  },
-  statRow: {
+  featurePreview: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    justifyContent: 'center',
+    gap: 32,
+    marginTop: 60,
   },
-  statLabel: {
-    fontSize: 16,
+  featItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featText: {
     color: '#94A3B8',
-  },
-  statValue: {
-    fontSize: 16,
-    color: '#38BDF8',
-    fontWeight: 'bold',
-  },
-  explanationText: {
     fontSize: 14,
-    color: '#E2E8F0',
-    lineHeight: 22,
-  },
-  listItem: {
-    fontSize: 14,
-    color: '#CBD5E1',
-    lineHeight: 22,
-    marginBottom: 4,
+    fontWeight: '500',
   },
 });

@@ -108,6 +108,12 @@ def _load_analysis(analysis_id: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _save_analysis(analysis_id: str, data: dict):
+    """Persist analysis result to disk."""
+    path = ANALYSIS_STORE / f"{analysis_id}.json"
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 # ═══════════════════════════════════════════════════════════════
 # EXISTING ENDPOINTS (backward-compatible)
 # ═══════════════════════════════════════════════════════════════
@@ -264,61 +270,129 @@ async def get_use_cases(analysis_id: str):
 @router.post("/analysis/{analysis_id}/explain-element", response_model=CodeElementResponse)
 async def explain_code_element(analysis_id: str, req: CodeElementRequest):
     """Explain a specific code element (class or function) with structured output.
-
-    Searches for the element by name across all files and generates
-    a structured explanation with Purpose, Role, Notes, and Category.
+    Uses caching to avoid redundant LLM calls.
     """
     data = _load_analysis(analysis_id)
+    
+    # Check cache first
+    cache_key = f"__element__{req.file_path}__{req.name}"
+    if cache_key in data.get("explanations", {}):
+        raw = data["explanations"][cache_key]
+        purpose, role, notes, category = _parse_code_element(raw)
+        return CodeElementResponse(
+            name=req.name,
+            file_path=req.file_path,
+            element_type="cached",
+            purpose=purpose,
+            role=role,
+            notes=notes,
+            category=category,
+            raw_explanation=raw,
+        )
 
     # Search for the element
+    # Normalize requested path
+    req_path = req.file_path.replace("\\", "/") if req.file_path else None
+    
+    # First pass: Search in the specified file (if provided)
+    matches = []
     for f in data["files"]:
-        if req.file_path and f["path"] != req.file_path:
-            continue
+        f_path = f["path"].replace("\\", "/")
+        
+        # If file_path provided, check for match (exact or suffix)
+        is_target_file = False
+        if req_path:
+            if f_path == req_path or f_path.endswith("/" + req_path) or req_path.endswith("/" + f_path):
+                is_target_file = True
+        
+        # If no file_path provided or this is the target file, search it
+        if not req_path or is_target_file:
+            # Check classes (only if no type or type is class)
+            if not req.element_type or req.element_type == "class":
+                for cls in f.get("classes", []):
+                    if cls["name"] == req.name:
+                        matches.append(("class", cls, f["path"]))
+            
+            # Check functions/methods (only if no type or type is function/method)
+            if not req.element_type or req.element_type in ["function", "method"]:
+                for fn in f.get("functions", []):
+                    if fn["name"] == req.name:
+                        # If a specific type was requested, prioritize it
+                        if req.element_type == "method" and fn.get("is_method"):
+                            matches.insert(0, ("function", fn, f["path"]))
+                        elif req.element_type == "function" and not fn.get("is_method"):
+                            matches.insert(0, ("function", fn, f["path"]))
+                        else:
+                            matches.append(("function", fn, f["path"]))
+        
+        if is_target_file and matches:
+            break
 
-        # Check classes
-        for cls in f.get("classes", []):
-            if cls["name"] == req.name:
-                raw = explain_class(
-                    cls["name"],
-                    cls.get("bases", []),
-                    cls.get("methods", []),
-                    cls.get("docstring", ""),
-                    f["path"],
-                )
-                purpose, role, notes, category = _parse_code_element(raw)
-                return CodeElementResponse(
-                    name=cls["name"],
-                    file_path=f["path"],
-                    element_type="class",
-                    purpose=purpose,
-                    role=role,
-                    notes=notes,
-                    category=category,
-                    raw_explanation=raw,
-                )
+    # Second pass: If no match found in target file, search everywhere
+    if not matches and req_path:
+        for f in data["files"]:
+            for cls in f.get("classes", []):
+                if cls["name"] == req.name:
+                    matches.append(("class", cls, f["path"]))
+            for fn in f.get("functions", []):
+                if fn["name"] == req.name:
+                    matches.append(("function", fn, f["path"]))
+            if matches:
+                break
 
-        # Check functions
-        for fn in f.get("functions", []):
-            if fn["name"] == req.name:
-                raw = explain_function(
-                    fn["name"],
-                    fn.get("args", []),
-                    fn.get("returns"),
-                    fn.get("docstring"),
-                    fn.get("calls", []),
-                    f["path"],
-                )
-                purpose, role, notes, category = _parse_code_element(raw)
-                return CodeElementResponse(
-                    name=fn["name"],
-                    file_path=f["path"],
-                    element_type="method" if fn.get("is_method") else "function",
-                    purpose=purpose,
-                    role=role,
-                    notes=notes,
-                    category=category,
-                    raw_explanation=raw,
-                )
+    if matches:
+        etype, element, fpath = matches[0]
+        if etype == "class":
+            raw = explain_class(
+                element["name"],
+                element.get("bases", []),
+                element.get("methods", []),
+                element.get("docstring", ""),
+                fpath,
+            )
+            purpose, role, notes, category = _parse_code_element(raw)
+            
+            # Save to cache
+            if "explanations" not in data: data["explanations"] = {}
+            data["explanations"][cache_key] = raw
+            _save_analysis(analysis_id, data)
+
+            return CodeElementResponse(
+                name=element["name"],
+                file_path=fpath,
+                element_type="class",
+                purpose=purpose,
+                role=role,
+                notes=notes,
+                category=category,
+                raw_explanation=raw,
+            )
+        else:
+            raw = explain_function(
+                element["name"],
+                element.get("args", []),
+                element.get("returns"),
+                element.get("docstring"),
+                element.get("calls", []),
+                fpath,
+            )
+            purpose, role, notes, category = _parse_code_element(raw)
+
+            # Save to cache
+            if "explanations" not in data: data["explanations"] = {}
+            data["explanations"][cache_key] = raw
+            _save_analysis(analysis_id, data)
+
+            return CodeElementResponse(
+                name=element["name"],
+                file_path=fpath,
+                element_type="method" if element.get("is_method") else "function",
+                purpose=purpose,
+                role=role,
+                notes=notes,
+                category=category,
+                raw_explanation=raw,
+            )
 
     raise HTTPException(404, f"Element '{req.name}' not found in analysis")
 
@@ -422,23 +496,42 @@ def _parse_use_cases(raw: str) -> tuple[list[str], list[str], list[str]]:
 
 
 def _parse_code_element(raw: str) -> tuple[str, str, str, str]:
-    """Parse the LLM's code-element output into purpose, role, notes, category."""
+    """Parse the LLM's code-element output into purpose, role, notes, category.
+    Handles variations in formatting (bolding, case, etc.)
+    """
     purpose = ""
     role = ""
     notes = ""
-    category = ""
+    category = "Core Logic"
 
-    for line in raw.splitlines():
+    # If it's an error message, return it as purpose
+    if raw.startswith("(AI explanation unavailable"):
+        return raw, "N/A", "Please check your Groq API key or internet connection.", "Error"
+
+    lines = raw.splitlines()
+    for i, line in enumerate(lines):
         line = line.strip()
-        lower = line.lower()
+        # Remove markdown bolding if present: **Purpose:** -> Purpose:
+        clean_line = line.replace("**", "").replace("__", "").strip()
+        lower = clean_line.lower()
 
         if lower.startswith("purpose:"):
-            purpose = line.split(":", 1)[1].strip()
+            purpose = clean_line.split(":", 1)[1].strip()
         elif lower.startswith("role:"):
-            role = line.split(":", 1)[1].strip()
+            role = clean_line.split(":", 1)[1].strip()
         elif lower.startswith("notes:"):
-            notes = line.split(":", 1)[1].strip()
+            notes = clean_line.split(":", 1)[1].strip()
         elif lower.startswith("category:"):
-            category = line.split(":", 1)[1].strip()
+            category = clean_line.split(":", 1)[1].strip()
+        
+        # Fallback: if line is just "Purpose" and next line has content
+        elif lower == "purpose" and i + 1 < len(lines):
+            purpose = lines[i+1].strip().lstrip("-* ").strip()
+        elif lower == "role" and i + 1 < len(lines):
+            role = lines[i+1].strip().lstrip("-* ").strip()
+
+    # Final fallback: if nothing parsed, use raw but stripped
+    if not purpose and len(raw) > 10:
+        purpose = raw.split("\n\n")[0].strip()
 
     return purpose, role, notes, category

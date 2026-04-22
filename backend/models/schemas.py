@@ -81,6 +81,7 @@ class UseCaseResponse(BaseModel):
 class CodeElementRequest(BaseModel):
     name: str = Field(..., description="Name of the class or function to explain")
     file_path: str | None = Field(None, description="Optional file path to disambiguate")
+    element_type: str | None = Field(None, description="class | function | method")
 
 
 class CodeElementResponse(BaseModel):

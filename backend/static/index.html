@@ -433,6 +433,9 @@
             padding: 16px;
             border: 1px solid var(--border);
             box-shadow: var(--shadow);
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         .inspect-card.full-width {
@@ -511,6 +514,12 @@
             border-radius: 14px;
             padding: 16px;
             box-shadow: 0 0 24px rgba(191,90,242,0.05);
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-height: 450px;
+            overflow-y: auto;
         }
 
         .ai-box h3 {
@@ -1027,6 +1036,36 @@
         .input-section,
         .loading,
         .dashboard,
+        /*  Responsive  */
+        @media (max-width: 768px) {
+            header { padding: 12px 16px; }
+            header h1 { font-size: 16px; }
+            .tabs-nav { padding: 0 12px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .tab { padding: 10px 12px; font-size: 13px; flex-shrink: 0; }
+            .dashboard { padding: 12px; }
+            .stat-card { padding: 12px; }
+            .stat-val { font-size: 20px; }
+            .hero-h1 { font-size: 28px; line-height: 1.2; }
+            .file-row { padding: 10px; }
+            .file-meta { display: none; }
+            .inspect-card { padding: 12px; }
+            #graphCanvas { height: 350px !important; }
+            .flow-step { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px; }
+        }
+
+        .btn-explain {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .btn-explain:hover { background: rgba(0, 229, 255, 0.2); }
         .error-box {
             position: relative;
             z-index: 1;
@@ -1138,7 +1177,7 @@
                             <div class="legend-dot" style="background: var(--green)"></div> Class
                         </div>
                         <div class="legend-item">
-                            <div class="legend-dot" style="background: var(--purple)"></div> Function
+                            <div class="legend-dot" style="background: var(--purple)"></div> Function/Method
                         </div>
                     </div>
                 </div>
@@ -1202,6 +1241,35 @@
         const API = window.location.origin;
         let analysisData = null;
         let graphFilters = { file: true, class: true, function: false, method: false };
+
+        // Check for analysis_id in URL
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const analysisId = urlParams.get('analysis_id');
+            if (analysisId) {
+                loadAnalysisById(analysisId);
+            }
+        });
+
+        async function loadAnalysisById(id) {
+            console.log('Loading analysis:', id, 'from API:', API);
+            try {
+                showScreen('loading');
+                document.getElementById('loadingText').textContent = 'Loading analysis results...';
+                
+                const res = await fetch(`${API}/api/analysis/${id}`);
+                if (!res.ok) throw new Error('Analysis not found');
+                const fullData = await res.json();
+                
+                analysisData = fullData;
+                renderDashboard();
+                showScreen('dashboard');
+            } catch (err) {
+                console.error(err);
+                showScreen('input');
+                showError('Could not load analysis: ' + err.message);
+            }
+        }
 
         //  Format LLM Response 
         function formatAIResponse(text) {
@@ -1288,6 +1356,22 @@
                 grouped[folder].push(f);
             });
 
+            const getExt = (p) => {
+                const ext = p.split('.').pop().toLowerCase();
+                const map = {
+                    'py': { label: 'PY', color: 'var(--blue)', bg: 'rgba(77,148,255,0.1)' },
+                    'js': { label: 'JS', color: 'var(--orange)', bg: 'rgba(255,159,10,0.1)' },
+                    'ts': { label: 'TS', color: 'var(--blue)', bg: 'rgba(77,148,255,0.1)' },
+                    'jsx': { label: 'JSX', color: 'var(--cyan)', bg: 'rgba(0,229,255,0.1)' },
+                    'tsx': { label: 'TSX', color: 'var(--cyan)', bg: 'rgba(0,229,255,0.1)' },
+                    'html': { label: 'HTM', color: 'var(--red)', bg: 'rgba(255,69,58,0.1)' },
+                    'css': { label: 'CSS', color: 'var(--purple)', bg: 'rgba(191,90,242,0.1)' },
+                    'go': { label: 'GO', color: 'var(--cyan)', bg: 'rgba(0,229,255,0.1)' },
+                    'java': { label: 'JAV', color: 'var(--red)', bg: 'rgba(255,69,58,0.1)' }
+                };
+                return map[ext] || { label: ext.toUpperCase().slice(0,3), color: 'var(--text-muted)', bg: 'rgba(255,255,255,0.05)' };
+            };
+
             let html = '', fIdx = 0;
             Object.keys(grouped).sort().forEach(folder => {
                 html += `<div class="folder-header"> ${folder}</div>`;
@@ -1295,16 +1379,17 @@
                     const name = f.path.split('/').pop();
                     const hasClasses = f.classes && f.classes.length > 0;
                     const fcId = `fc-${fIdx++}`;
+                    const extInfo = getExt(f.path);
                     html += `
                 <div class="file-card">
                     <div class="file-row" onclick="inspectFile('${f.path}')">
-                        <span class="file-icon" style="color:var(--blue);font-size:11px;font-weight:700;background:rgba(77,148,255,0.1);border:1px solid rgba(77,148,255,0.25);border-radius:4px;padding:1px 5px;">PY</span>
+                        <span class="file-icon" style="color:${extInfo.color};font-size:10px;font-weight:700;background:${extInfo.bg};border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:1px 4px;min-width:24px;text-align:center;">${extInfo.label}</span>
                         <span class="file-name">${name}</span>
                         <div class="file-meta">
                             <span>${f.line_count} lines</span>
-                            ${hasClasses ? `<span class="classes">${f.classes.length} classes</span>` : ''}
-                            ${f.functions.length ? `<span class="funcs">${f.functions.length} funcs</span>` : ''}
-                            ${hasClasses ? `<button class="file-classes-toggle" onclick="event.stopPropagation();toggleFileClasses('${fcId}',this)">&gt; Classes</button>` : ''}
+                            ${hasClasses ? `<span class="classes">${f.classes.length} cl</span>` : ''}
+                            ${f.functions.length ? `<span class="funcs">${f.functions.length} fn</span>` : ''}
+                            ${hasClasses ? `<button class="file-classes-toggle" onclick="event.stopPropagation();toggleFileClasses('${fcId}',this)">&gt; Class</button>` : ''}
                         </div>
                     </div>
                     ${hasClasses ? `<div id="${fcId}" class="file-classes">${f.classes.map(c => `<span class="file-class-pill" onclick="inspectFile('${f.path}')" title="${c.name}">${c.name}</span>`).join('')}</div>` : ''}
@@ -1322,9 +1407,26 @@
         }
 
         function inspectFile(path) {
-            switchTab('inspection', document.querySelectorAll('.tab')[3]);
-            const file = analysisData.files.find(f => f.path === path);
-            if (!file) return;
+            console.log('Inspecting file:', path);
+            const tabs = document.querySelectorAll('.tab');
+            let inspectTab = Array.from(tabs).find(t => t.textContent.trim().toLowerCase() === 'inspection');
+            if (!inspectTab) inspectTab = tabs[3];
+            
+            if (inspectTab) switchTab('inspection', inspectTab);
+            
+            // Normalize path for matching
+            const normPath = path.replace(/\\/g, '/');
+            const file = analysisData.files.find(f => 
+                f.path === normPath || 
+                f.path.endsWith(normPath) || 
+                normPath.endsWith(f.path) ||
+                f.path.split('/').pop() === normPath.split('/').pop()
+            );
+
+            if (!file) {
+                console.error('File not found for path:', path);
+                return;
+            }
 
             document.getElementById('inspectHint').classList.add('hidden');
             const container = document.getElementById('inspectContent');
@@ -1378,73 +1480,77 @@
                 html += `<div class="inspect-card full-width"><h3><span class="icon"></span> Classes (${file.classes.length})</h3>`;
                 file.classes.forEach(cls => {
                     const has = cls.bases?.length > 0;
-                    html += `<div class="class-item" style="margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <div style="font-size: 15px; font-weight: 600; color: var(--green);">class ${cls.name}</div>
+                    const classMethods = file.functions.filter(f => f.is_method && cls.methods.includes(f.name));
+                    
+                    html += `<div class="class-item" style="margin-bottom: 24px; border-left: 4px solid var(--green); padding-left: 16px; background: rgba(48,209,88,0.02);">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 16px; font-weight: 700; color: var(--green);">class ${cls.name}</div>
                     ${has ? '<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(191,90,242,0.15);color:var(--purple);">inherits</span>' : ''}
                 </div>
-                ${has ? `<div style="font-size: 12px; color: var(--purple); margin-bottom: 4px;"> Extends: <strong>${cls.bases.join(', ')}</strong></div>` : ''}
-                ${cls.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; margin-bottom: 6px; padding: 6px 10px; border-left: 3px solid var(--green); background: rgba(48,209,88,0.05); border-radius: 0 6px 6px 0;">"${cls.docstring}"</div>` : ''}
-                ${cls.methods?.length ? `<div style="margin-top: 6px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;"> Methods (${cls.methods.length}):</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                        ${cls.methods.map(m => `<span style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(191,90,242,0.1);color:var(--purple);font-family:monospace;border:1px solid rgba(191,90,242,0.25);">${m}()</span>`).join('')}
+                ${has ? `<div style="font-size: 12px; color: var(--purple); margin-bottom: 8px;"> Extends: <strong>${cls.bases.join(', ')}</strong></div>` : ''}
+                ${cls.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; margin-bottom: 12px; padding: 8px 12px; border-left: 3px solid var(--green); background: rgba(48,209,88,0.05); border-radius: 0 6px 6px 0;">"${cls.docstring}"</div>` : ''}
+                
+                ${classMethods.length ? `<div style="margin-top: 12px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"> Class Methods</div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        ${classMethods.map(fn => {
+                            const args = fn.args?.filter(a => a !== 'self' && a !== 'cls').join(', ') || '';
+                            const ret = fn.returns || 'None';
+                            return `
+                            <div class="func-item" style="background: rgba(13,17,23,0.4); border: 1px solid rgba(255,255,255,0.05);">
+                                <div style="font-family: monospace; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <span style="color: var(--purple); font-weight: 600;">def</span>
+                                        <span style="color: var(--text); font-weight: 600;"> ${fn.name}</span><span style="color: var(--text-dim);">(${args})</span>
+                                        <span style="color: var(--cyan);">  ${ret}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button class="btn-explain" style="margin-left:0; padding: 3px 8px;" onclick="explainCodeElement('${fn.name}', '${path}', 'method')">Explain</button>
+                                        <button class="btn-flow" style="padding: 3px 8px;" onclick="traceFlow('${fn.name}', '${path}')">Trace</button>
+                                    </div>
+                                </div>
+                                <div id="exp-${path.replace(/[^a-zA-Z0-9]/g, '_')}-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="ai-box hidden" style="margin: 8px 0; font-size: 12px; border-left: 2px solid var(--cyan); padding-left: 10px;"></div>
+                                <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
+                                ${fn.docstring ? `<div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px;">"${fn.docstring}"</div>` : ''}
+                            </div>`;
+                        }).join('')}
                     </div>
                 </div>` : ''}
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;"> Defined in ${path}</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 12px; opacity: 0.6;"> Defined in ${path}</div>
             </div>`;
                 });
                 html += `</div>`;
             }
 
-            // Functions
-            if (file.functions.length > 0) {
-                const topLevel = file.functions.filter(f => !f.is_method);
-                const methods = file.functions.filter(f => f.is_method);
-
-                if (topLevel.length > 0) {
-                    html += `<div class="inspect-card full-width"><h3><span class="icon"></span> Top-Level Functions (${topLevel.length})</h3>`;
-                    topLevel.forEach(fn => {
-                        const args = fn.args?.join(', ') || '';
-                        const ret = fn.returns || 'None';
-                        html += `<div class="func-item" style="margin-bottom: 12px;">
-                    <div style="font-family: monospace; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <span style="color: var(--purple); font-weight: 600;">def</span>
-                            <span style="color: var(--text); font-weight: 600;"> ${fn.name}</span><span style="color: var(--text-dim);">(${args})</span>
-                            <span style="color: var(--cyan);">  ${ret}</span>
-                        </div>
+            // Top-Level Functions
+            const topLevel = file.functions.filter(f => !f.is_method);
+            if (topLevel.length > 0) {
+                html += `<div class="inspect-card full-width"><h3><span class="icon"></span> Top-Level Functions (${topLevel.length})</h3>`;
+                topLevel.forEach(fn => {
+                    const args = fn.args?.join(', ') || '';
+                    const ret = fn.returns || 'None';
+                    html += `<div class="func-item" style="margin-bottom: 12px;">
+                <div style="font-family: monospace; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <span style="color: var(--purple); font-weight: 600;">def</span>
+                        <span style="color: var(--text); font-weight: 600;"> ${fn.name}</span><span style="color: var(--text-dim);">(${args})</span>
+                        <span style="color: var(--cyan);">  ${ret}</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-explain" style="margin-left:0;" onclick="explainCodeElement('${fn.name}', '${path}', 'function')">Explain </button>
                         <button class="btn-flow" onclick="traceFlow('${fn.name}', '${path}')">Trace Flow </button>
                     </div>
-                    <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
-                    ${fn.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; padding: 6px 10px; border-left: 3px solid var(--purple); background: rgba(191,90,242,0.05); border-radius: 0 6px 6px 0; margin-bottom: 4px;">"${fn.docstring}"</div>` : ''}
-                    ${fn.calls?.length ? `<div style="font-size: 11px; margin-top: 4px;">
-                        <span style="color: var(--text-muted);"> Calls:</span>
-                        ${fn.calls.slice(0, 15).map(c => `<span style="font-size:11px;padding:2px 6px;border-radius:4px;margin:1px;display:inline-block;background:rgba(0,229,255,0.1);color:var(--cyan);font-family:monospace;border:1px solid rgba(0,229,255,0.2);">${c}()</span>`).join('')}
-                    </div>` : ''}
-                </div>`;
-                    });
-                    html += `</div>`;
-                }
-
-                if (methods.length > 0) {
-                    html += `<div class="inspect-card full-width"><h3><span class="icon"></span> Methods (${methods.length})</h3>`;
-                    methods.forEach(fn => {
-                        const args = fn.args?.filter(a => a !== 'self' && a !== 'cls').join(', ') || '';
-                        const ret = fn.returns || 'None';
-                        html += `<div class="func-item" style="margin-bottom: 8px;">
-                    <div style="font-family:monospace;font-size:12px;">
-                        <span style="color:var(--purple);">def</span>
-                        <span style="color:var(--text);"> ${fn.name}</span><span style="color:var(--text-dim);">(${args})</span>
-                        <span style="color:var(--cyan);">  ${ret}</span>
-                        <button class="btn-flow" onclick="traceFlow('${fn.name}', '${path}')">Trace Flow </button>
-                    </div>
-                    <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
-                    ${fn.docstring ? `<div style="font-size:11px;color:var(--text-dim);font-style:italic;">"${fn.docstring}"</div>` : ''}
-                </div>`;
-                    });
-                    html += `</div>`;
-                }
+                </div>
+                <div id="exp-${path.replace(/[^a-zA-Z0-9]/g, '_')}-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="ai-box hidden" style="margin: 8px 0; font-size: 12px; border-left: 2px solid var(--cyan); padding-left: 10px;"></div>
+                <div id="flow-${fn.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="hidden"></div>
+                ${fn.docstring ? `<div style="font-size: 12px; color: var(--text-dim); font-style: italic; padding: 6px 10px; border-left: 3px solid var(--purple); background: rgba(191,90,242,0.05); border-radius: 0 6px 6px 0; margin-bottom: 4px;">"${fn.docstring}"</div>` : ''}
+                ${fn.calls?.length ? `<div style="font-size: 11px; margin-top: 4px;">
+                    <span style="color: var(--text-muted);"> Calls:</span>
+                    ${fn.calls.slice(0, 15).map(c => `<span style="font-size:11px;padding:2px 6px;border-radius:4px;margin:1px;display:inline-block;background:rgba(0,229,255,0.1);color:var(--cyan);font-family:monospace;border:1px solid rgba(0,229,255,0.2);">${c}()</span>`).join('')}
+                </div>` : ''}
+            </div>`;
+                });
+                html += `</div>`;
             }
 
             // Imports
@@ -1503,6 +1609,29 @@
             }
         }
 
+        async function explainCodeElement(name, filePath, type) {
+            const safePath = filePath.replace(/[^a-zA-Z0-9]/g, '_');
+            const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+            const elId = `exp-${safePath}-${safeName}`;
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.innerHTML = '<div style="padding:10px; color:var(--text-muted);">Generating AI explanation...</div>';
+
+            try {
+                const res = await fetch(`${API}/api/analysis/${analysisData.id}/explain-element`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, file_path: filePath, element_type: type })
+                });
+                if (!res.ok) throw new Error('Explanation failed');
+                const data = await res.json();
+                renderStructuredExplanation(el, data);
+            } catch (err) {
+                el.innerHTML = `<div style="padding:10px; color:var(--red);">${err.message}</div>`;
+            }
+        }
+
         function renderStructuredExplanation(container, data) {
             const cats = {
                 'Core Logic': { bg: 'rgba(255,69,58,0.15)', text: 'var(--red)' },
@@ -1549,16 +1678,24 @@
                 if (!res.ok) throw new Error('Flow trace failed');
 
                 const data = await res.json();
-                let html = '<div class="flow-container">';
+                let html = '<div class="flow-container" style="max-width:100%; overflow-x:hidden; box-sizing:border-box;">';
 
                 data.call_path.forEach(step => {
                     const parts = step.split('  ');
                     const func = parts[0];
-                    const path = parts.length > 1 ? parts[1] : '';
+                    let path = parts.length > 1 ? parts[1].trim() : '';
+                    if (path.startsWith('[') && path.endsWith(']')) path = path.slice(1, -1);
+                    const escPath = path.replace(/\\/g, '\\\\');
                     html += `
-                        <div class="flow-step">
-                            <div class="func">${func}</div>
-                            <div class="path">${path}</div>
+                        <div class="flow-step" style="overflow-x: hidden; word-break: break-all; display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="flex: 1;">
+                                <div class="func" style="color: var(--cyan); font-weight: 700;">${func}</div>
+                                <div class="path" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${path}</div>
+                            </div>
+                            ${path ? `
+                            <button onclick="inspectFile('${escPath}')" style="background: rgba(0, 229, 255, 0.15); color: var(--cyan); border: 1px solid var(--cyan); padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer; margin-left: 10px;">
+                                JUMP
+                            </button>` : ''}
                         </div>
                     `;
                 });
@@ -1587,13 +1724,9 @@
             let dragStartPos = null;
             let pinchStartDist = null;
             let pinchStartScale = 1;
-            let longPressTimer = null;
-
-            function getTouchDist(touches) {
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                return Math.sqrt(dx * dx + dy * dy);
-            }
+            let lastTapTime = 0;
+            let holdTimer = null;
+            let isHolding = false;
 
             // Desktop mouse events
             canvas.addEventListener('wheel', (e) => {
@@ -1605,88 +1738,134 @@
                 graphState.dragging = true;
                 graphState.lastMouse = { x: e.clientX, y: e.clientY };
                 dragStartPos = { x: e.clientX, y: e.clientY };
+                
+                // Hold timer for desktop too
+                holdTimer = setTimeout(() => {
+                    handleGraphHover(e);
+                    isHolding = true;
+                }, 800);
             });
             canvas.addEventListener('mousemove', (e) => {
                 if (graphState.dragging && graphState.lastMouse) {
+                    const dx = Math.abs(e.clientX - dragStartPos.x);
+                    const dy = Math.abs(e.clientY - dragStartPos.y);
+                    if (dx > 5 || dy > 5) {
+                        clearTimeout(holdTimer);
+                        holdTimer = null;
+                    }
                     graphState.offsetX += e.clientX - graphState.lastMouse.x;
                     graphState.offsetY += e.clientY - graphState.lastMouse.y;
                     graphState.lastMouse = { x: e.clientX, y: e.clientY };
                     renderGraph();
-                } else if (!graphState.dragging) {
-                    handleGraphHover(e);
                 }
             });
             canvas.addEventListener('mouseup', (e) => {
                 graphState.dragging = false;
-                // Only trigger click if not a drag
+                clearTimeout(holdTimer);
+                
                 if (dragStartPos && Math.abs(e.clientX - dragStartPos.x) < 5 && Math.abs(e.clientY - dragStartPos.y) < 5) {
-                    handleGraphClick(e);
+                    const now = Date.now();
+                    if (now - lastTapTime < 300) {
+                        // Double tap reset
+                        graphState.offsetX = 0; graphState.offsetY = 0; graphState.scale = 1;
+                        graphState.hoveredNode = null;
+                        renderGraph();
+                    } else if (!isHolding) {
+                        // Simple click -> navigate
+                        handleGraphClick(e);
+                    }
+                    lastTapTime = now;
                 }
+                isHolding = false;
                 dragStartPos = null;
             });
-            canvas.addEventListener('mouseleave', () => { graphState.dragging = false; dragStartPos = null; graphState.hoveredNode = null; hideGraphTooltip(); renderGraph(); });
 
             // Mobile touch events
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (graphState.hoveredNode) {
-                    graphState.hoveredNode = null;
-                    hideGraphTooltip();
-                    renderGraph();
-                }
-
                 if (e.touches.length === 1) {
                     const t = e.touches[0];
                     graphState.dragging = true;
                     graphState.lastMouse = { x: t.clientX, y: t.clientY };
                     dragStartPos = { x: t.clientX, y: t.clientY };
                     
-                    longPressTimer = setTimeout(() => {
-                        graphState.dragging = false;
-                        dragStartPos = null;
-                        longPressTimer = null;
+                    // Start 1 sec hold timer
+                    holdTimer = setTimeout(() => {
                         handleGraphHover({ clientX: t.clientX, clientY: t.clientY });
-                    }, 400);
+                        isHolding = true;
+                        // Haptic feedback if possible via JS (vibrate)
+                        if (navigator.vibrate) navigator.vibrate(20);
+                    }, 1000);
                 } else if (e.touches.length === 2) {
-                    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+                    clearTimeout(holdTimer);
                     graphState.dragging = false;
-                    pinchStartDist = getTouchDist(e.touches);
+                    pinchStartDist = (touches => {
+                        const dx = touches[0].clientX - touches[1].clientX;
+                        const dy = touches[0].clientY - touches[1].clientY;
+                        return Math.sqrt(dx * dx + dy * dy);
+                    })(e.touches);
                     pinchStartScale = graphState.scale;
                 }
             }, { passive: false });
 
             canvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
-                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-
                 if (e.touches.length === 1 && graphState.dragging && graphState.lastMouse) {
                     const t = e.touches[0];
+                    const dx = Math.abs(t.clientX - dragStartPos.x);
+                    const dy = Math.abs(t.clientY - dragStartPos.y);
+                    if (dx > 10 || dy > 10) {
+                        clearTimeout(holdTimer);
+                        holdTimer = null;
+                    }
                     graphState.offsetX += t.clientX - graphState.lastMouse.x;
                     graphState.offsetY += t.clientY - graphState.lastMouse.y;
                     graphState.lastMouse = { x: t.clientX, y: t.clientY };
                     renderGraph();
                 } else if (e.touches.length === 2 && pinchStartDist) {
-                    const dist = getTouchDist(e.touches);
+                    clearTimeout(holdTimer);
+                    const dist = (touches => {
+                        const dx = touches[0].clientX - touches[1].clientX;
+                        const dy = touches[0].clientY - touches[1].clientY;
+                        return Math.sqrt(dx * dx + dy * dy);
+                    })(e.touches);
                     graphState.scale = Math.max(0.15, Math.min(4, pinchStartScale * (dist / pinchStartDist)));
                     renderGraph();
                 }
             }, { passive: false });
 
             canvas.addEventListener('touchend', (e) => {
-                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+                clearTimeout(holdTimer);
                 if (e.changedTouches.length === 1 && dragStartPos) {
                     const t = e.changedTouches[0];
                     if (Math.abs(t.clientX - dragStartPos.x) < 10 && Math.abs(t.clientY - dragStartPos.y) < 10) {
-                        handleGraphClick({ clientX: t.clientX, clientY: t.clientY });
+                        const now = Date.now();
+                        if (now - lastTapTime < 300) {
+                            // Double tap reset
+                            graphState.offsetX = 0; graphState.offsetY = 0; graphState.scale = 1;
+                            graphState.hoveredNode = null;
+                            renderGraph();
+                        } else if (!isHolding) {
+                            // Simple click -> navigate
+                            handleGraphClick({ clientX: t.clientX, clientY: t.clientY });
+                        }
+                        lastTapTime = now;
                     }
                 }
                 graphState.dragging = false;
+                isHolding = false;
                 pinchStartDist = null;
                 dragStartPos = null;
             });
         }
 
         function handleGraphClick(e) {
+            // Disable single-click navigation if we are in "Relationship View" (glow mode)
+            if (graphState.hoveredNode) {
+                console.log('In relationship mode: Navigation disabled until reset.');
+                return;
+            }
+
             const canvas = document.getElementById('graphCanvas');
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -1702,7 +1881,7 @@
 
             // Find which node was clicked
             for (const node of graph.nodes) {
-                const pos = graphPositions[node.id];
+                    const pos = graphPositions[node.id];
                 if (!pos) continue;
                 const sx = ox + pos.x * scale;
                 const sy = oy + pos.y * scale;
@@ -1772,15 +1951,28 @@
             canvas.style.height = H + 'px';
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            // Dark neon background
+            // Dark neon background matching app
             ctx.fillStyle = '#05070f';
             ctx.fillRect(0, 0, W, H);
 
-            // Grid dots
-            const gridSize = 30;
-            ctx.fillStyle = '#1a2332';
+            // Subtle glow blobs (matching PremiumBackground) - Increased Intensity
+            const g1 = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.9);
+            g1.addColorStop(0, 'rgba(0, 229, 255, 0.12)');
+            g1.addColorStop(0.5, 'rgba(0, 229, 255, 0.04)');
+            g1.addColorStop(1, 'rgba(0, 229, 255, 0)');
+            ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+
+            const g2 = ctx.createRadialGradient(W, H * 0.3, 0, W, H * 0.3, W * 0.8);
+            g2.addColorStop(0, 'rgba(191, 90, 242, 0.15)');
+            g2.addColorStop(0.5, 'rgba(191, 90, 242, 0.06)');
+            g2.addColorStop(1, 'rgba(191, 90, 242, 0)');
+            ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+
+            // Grid dots - More visible
+            const gridSize = 40;
+            ctx.fillStyle = 'rgba(77, 148, 255, 0.12)';
             for (let x = 0; x < W; x += gridSize) for (let y = 0; y < H; y += gridSize) {
-                ctx.beginPath(); ctx.arc(x, y, 0.7, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill();
             }
 
             const graph = analysisData?.graph;
@@ -1870,7 +2062,7 @@
             // Draw nodes
             const typeColors = {
                 repository: '#ef4444', folder: '#f59e0b', file: '#3b82f6',
-                class: '#22c55e', function: '#8b5cf6', method: '#14b8a6',
+                class: '#22c55e', function: '#8b5cf6', method: '#8b5cf6',
             };
 
             visibleNodes.forEach(node => {
@@ -1981,6 +2173,10 @@
             document.getElementById('inputScreen').classList.toggle('hidden', name !== 'input');
             document.getElementById('loadingScreen').classList.toggle('hidden', name !== 'loading');
             document.getElementById('dashboard').classList.toggle('hidden', name !== 'dashboard');
+            
+            // Always hide tooltips when switching screens
+            if (typeof hideGraphTooltip === 'function') hideGraphTooltip();
+
             const mc = document.getElementById('meshCanvas');
             if (mc) mc.style.display = (name === 'dashboard') ? 'none' : 'block';
             if (name !== 'dashboard' && window.meshBg) window.meshBg.start();
@@ -1991,9 +2187,14 @@
         function hideError() { document.getElementById('errorBox').classList.add('hidden'); }
 
         function switchTab(name, el) {
+            if (!el) return;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
-            ['graph', 'usecases', 'files', 'inspection', 'controlflow'].forEach(t => document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name));
+            const tabs = ['graph', 'usecases', 'files', 'inspection', 'controlflow'];
+            tabs.forEach(t => {
+                const target = document.getElementById(`tab-${t}`);
+                if (target) target.classList.toggle('hidden', t !== name);
+            });
         }
 
         function toggleFilter(type, el) {
@@ -2003,7 +2204,12 @@
             renderGraph();
         }
 
-        function resetApp() { analysisData = null; document.getElementById('repoUrl').value = ''; showScreen('input'); }
+        function resetApp() { 
+            analysisData = null; 
+            document.getElementById('repoUrl').value = ''; 
+            if (typeof hideGraphTooltip === 'function') hideGraphTooltip();
+            showScreen('input'); 
+        }
 
         //  Use Cases Rendering 
         function renderUseCases() {
@@ -2260,10 +2466,10 @@
             const steps = data.call_path;
             if (!steps || steps.length === 0) return '<div class="flow-empty"><span class="flow-icon"></span><p>No call path found.</p></div>';
 
-            const BOX_W = 300, BOX_H = 62, GAP = 64, PAD_X = 60, PAD_Y = 30;
+            const BOX_W = 260, BOX_H = 58, GAP = 50, PAD_X = 30, PAD_Y = 25;
             const STEP = BOX_H + GAP;
+            const totalH = steps.length * STEP + PAD_Y * 2;
             const SVG_W = BOX_W + PAD_X * 2;
-            const SVG_H = steps.length * STEP - GAP + PAD_Y * 2;
             const palette = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#14b8a6','#ec4899','#f97316'];
             const fileColorMap = {};
             let colorIdx = 0;
@@ -2277,7 +2483,7 @@
             function escSvg(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
             function trunc(s, max) { return s.length > max ? s.slice(0, max - 2) + '..' : s; }
 
-            let svg = `<svg viewBox="0 0 ${SVG_W} ${SVG_H}" xmlns="http://www.w3.org/2000/svg">`;
+            let svg = `<svg width="${SVG_W}" height="${totalH}" viewBox="0 0 ${SVG_W} ${totalH}" xmlns="http://www.w3.org/2000/svg">`;
             svg += `<defs><marker id="cfArr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#94a3b8"/></marker></defs>`;
 
             steps.forEach(function(step, i) {
@@ -2311,7 +2517,28 @@
             });
 
             svg += '</svg>';
-            return `<div style="max-width:430px;margin:28px auto;padding:0 12px;">${svg}</div>`;
+            
+            // Generate Jump buttons for the right side
+            let buttonsHtml = '<div style="display:flex; flex-direction:column; gap:'+(GAP+BOX_H - 24)+'px; padding-top: '+ (PAD_Y + 17) +'px;">';
+            steps.forEach(step => {
+                const clean = step.replace(/^\s*/, '').trim();
+                const dblIdx = clean.indexOf('  [');
+                let rawPath = dblIdx > -1 ? clean.slice(dblIdx + 2).replace('[','').replace(']','') : '';
+                const escPath = rawPath.replace(/\\/g, '\\\\');
+                buttonsHtml += `
+                    <button onclick="inspectFile('${escPath}')" style="background:rgba(0,229,255,0.1); color:var(--cyan); border:1px solid rgba(0,229,255,0.3); border-radius:4px; font-size:9px; padding:4px 8px; font-weight:700; cursor:pointer; height:24px; white-space:nowrap;">
+                        JUMP
+                    </button>
+                `;
+            });
+            buttonsHtml += '</div>';
+
+            return `
+                <div style="display:flex; align-items:flex-start; justify-content:center; gap:10px; padding:20px 10px; max-width:100%; overflow-x:auto;">
+                    <div style="flex-shrink:0;">${svg}</div>
+                    ${buttonsHtml}
+                </div>
+            `;
         }
 
         //  Use Case SVG Diagram (Premium Dark) 

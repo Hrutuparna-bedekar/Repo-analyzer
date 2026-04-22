@@ -75,6 +75,7 @@ def build_graph(
         G.add_edge(parent_id, file_id)
 
         # ── 3. Class nodes ───────────────────────────────────────
+        class_method_map = {}  # To keep track of which method belongs to which class
         for cls in fa.classes:
             cls_id = f"class::{fa.path}::{cls.name}"
             nodes[cls_id] = GraphNode(
@@ -87,6 +88,9 @@ def build_graph(
                 },
             )
             G.add_node(cls_id)
+            
+            for m_name in cls.methods:
+                class_method_map[m_name] = cls_id
 
             # file → defines → class
             edges.append(GraphEdge(file_id, cls_id, EdgeType.DEFINES))
@@ -102,7 +106,13 @@ def build_graph(
         # ── 4. Function nodes ────────────────────────────────────
         for func in fa.functions:
             if func.is_method:
-                func_id = f"method::{fa.path}::{func.name}"
+                parent_cls_id = class_method_map.get(func.name)
+                # Make ID unique per class
+                if parent_cls_id:
+                    cls_name = parent_cls_id.split("::")[-1]
+                    func_id = f"method::{fa.path}::{cls_name}::{func.name}"
+                else:
+                    func_id = f"method::{fa.path}::{func.name}"
                 ntype = NodeType.METHOD
             else:
                 func_id = f"function::{fa.path}::{func.name}"
@@ -120,9 +130,15 @@ def build_graph(
             )
             G.add_node(func_id)
 
-            # file → defines → function
-            edges.append(GraphEdge(file_id, func_id, EdgeType.DEFINES))
-            G.add_edge(file_id, func_id)
+            # Define relationship
+            if func.is_method and parent_cls_id:
+                # class → defines → method
+                edges.append(GraphEdge(parent_cls_id, func_id, EdgeType.DEFINES))
+                G.add_edge(parent_cls_id, func_id)
+            else:
+                # file → defines → function
+                edges.append(GraphEdge(file_id, func_id, EdgeType.DEFINES))
+                G.add_edge(file_id, func_id)
 
     # ── 5. Import edges between files ────────────────────────────
     path_set = {fa.path for fa in file_analyses}
