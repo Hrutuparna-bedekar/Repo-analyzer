@@ -10,6 +10,9 @@
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://repo-analyzer-backend-4hvd.onrender.com"
       }
     },
     "production": {}
