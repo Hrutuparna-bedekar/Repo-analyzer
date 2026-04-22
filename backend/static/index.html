@@ -1431,6 +1431,10 @@
             document.getElementById('inspectHint').classList.add('hidden');
             const container = document.getElementById('inspectContent');
             container.classList.remove('hidden');
+            
+            // Switch tab if not already there
+            switchTab('inspection', document.querySelector('.tab[onclick*="inspection"]'));
+            hideGraphTooltip();
 
             const allFiles = analysisData.files;
             const fileName = path.split('/').pop().replace('.py', '');
@@ -1769,6 +1773,7 @@
                         // Double tap reset
                         graphState.offsetX = 0; graphState.offsetY = 0; graphState.scale = 1;
                         graphState.hoveredNode = null;
+                        hideGraphTooltip();
                         renderGraph();
                     } else if (!isHolding) {
                         // Simple click -> navigate
@@ -1788,6 +1793,7 @@
                     graphState.dragging = true;
                     graphState.lastMouse = { x: t.clientX, y: t.clientY };
                     dragStartPos = { x: t.clientX, y: t.clientY };
+                    hideGraphTooltip(); // Clear any existing tooltip on start
                     
                     // Start 1 sec hold timer
                     holdTimer = setTimeout(() => {
@@ -1844,6 +1850,7 @@
                             // Double tap reset
                             graphState.offsetX = 0; graphState.offsetY = 0; graphState.scale = 1;
                             graphState.hoveredNode = null;
+                            hideGraphTooltip();
                             renderGraph();
                         } else if (!isHolding) {
                             // Simple click -> navigate

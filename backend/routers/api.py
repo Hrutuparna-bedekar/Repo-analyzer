@@ -453,44 +453,56 @@ async def get_execution_flow(analysis_id: str, req: ExecutionFlowRequest):
 # ═══════════════════════════════════════════════════════════════
 
 def _parse_use_cases(raw: str) -> tuple[list[str], list[str], list[str]]:
-    """Parse the LLM's use-case output into actors, use_cases, relationships."""
+    """Parse the LLM's use-case output into actors, use_cases, relationships.
+    Handles markdown headers, bolding, and various list styles.
+    """
     actors = []
     use_cases = []
     relationships = []
 
     current_section = None
+    lines = raw.splitlines()
 
-    for line in raw.splitlines():
+    for line in lines:
         line = line.strip()
         if not line:
             continue
 
-        lower = line.lower()
-        if lower.startswith("actors:") or lower.startswith("actors"):
+        # Clean line for section matching: remove ###, **, __
+        clean_section = line.replace("#", "").replace("*", "").replace("_", "").strip().lower()
+        
+        if clean_section.startswith("actors") or "actors:" in clean_section:
             current_section = "actors"
-            # Check for inline content after the colon
             after = line.split(":", 1)[1].strip() if ":" in line else ""
-            if after and after != "":
-                actors.append(after)
+            if after: actors.append(after.lstrip("-*• "))
             continue
-        elif lower.startswith("use cases:") or lower.startswith("use cases"):
+        elif clean_section.startswith("use cases") or "use cases:" in clean_section:
             current_section = "use_cases"
             continue
-        elif lower.startswith("relationships:") or lower.startswith("relationships"):
+        elif clean_section.startswith("relationships") or "relationships:" in clean_section:
             current_section = "relationships"
             continue
 
-        # Strip list markers
-        clean = line.lstrip("-•*0123456789.) ").strip()
-        if not clean:
+        # Strip common list markers
+        clean_content = line.lstrip("-•*#0123456789.) ").strip()
+        if not clean_content:
             continue
 
         if current_section == "actors":
-            actors.append(clean)
+            actors.append(clean_content)
         elif current_section == "use_cases":
-            use_cases.append(clean)
+            use_cases.append(clean_content)
         elif current_section == "relationships":
-            relationships.append(clean)
+            # Normalize arrows for relationships
+            normalized_rel = clean_content.replace("->", "→").replace("=>", "→")
+            relationships.append(normalized_rel)
+
+    # Basic heuristic check: if nothing parsed but we have text, try one more time
+    if not use_cases and len(lines) > 5:
+        # Maybe it's just a raw list? 
+        for line in lines:
+            c = line.lstrip("-•*# ").strip()
+            if c and len(c) > 10: use_cases.append(c)
 
     return actors, use_cases, relationships
 
