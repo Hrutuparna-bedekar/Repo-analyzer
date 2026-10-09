@@ -1,0 +1,74 @@
+AI REPOSITORY ANALYZER: BACKEND DOCUMENTATION
+==========================================
+
+The backend is built with FastAPI and follows a modular service-oriented architecture. Its primary purpose is to ingest codebases, build a structural graph, and enrich that graph with AI-generated explanations.
+
+1. CORE PROCESSING PIPELINE
+---------------------------
+
+When a repository is analyzed (via GitHub URL or ZIP upload), the following pipeline is executed:
+
+STEP 1: Ingestion (repo_ingester.py)
+Clones a git repo or extracts a ZIP to a temporary directory.
+
+STEP 2: Analysis (ast_analyzer.py)
+- Python: Uses the native 'ast' module to extract classes, functions, docstrings, and function-call relationships.
+- Multi-language: Uses 'tree-sitter' (via 'generic_analyzer.py') to support JavaScript, TypeScript, Java, Kotlin, and Go.
+
+STEP 3: Graph Construction (graph_builder.py)
+Uses 'NetworkX' to build a directed graph where:
+- Nodes represent Folders, Files, Classes, and Functions.
+- Edges represent relationships like CONTAINS, DEFINES, IMPORTS, INHERITS, and CALLS.
+
+STEP 4: AI Enrichment (ai_explainer.py)
+Sends structural summaries to Groq (LLaMA 3) to generate:
+- Repository-level purpose and architecture.
+- Structured use-case extraction (Actors/Actions).
+- Detailed "Code Element" explanations for specific classes or functions.
+
+
+2. SERVICE LAYER BREAKDOWN
+--------------------------
+
+AST ANALYZER (services/ast_analyzer.py)
+This is the heart of the code extraction logic. It walks the source code without executing it.
+- Function Call Extraction: Records every function call within a method body, enabling Execution Flow Tracing.
+- Metadata: Captures line numbers, decorators, arguments, and return types.
+
+AI EXPLAINER (services/ai_explainer.py)
+Manages interactions with the Groq API.
+- Caching: Uses an MD5-based file cache in 'backend/analyses/.cache/'. If the same code block or prompt is requested again, it returns the cached response.
+- Parallelism: Uses ThreadPoolExecutor to generate explanations for top files in parallel.
+
+EXECUTION FLOW TRACER (services/flow_tracer.py)
+Allows users to see how code executes across files.
+- Takes a starting function and recursively follows the "calls" list extracted during AST analysis.
+- Detects cycles to prevent infinite loops and produces a step-by-step path explained by AI.
+
+
+3. DATA STORAGE & PERSISTENCE
+-----------------------------
+
+The backend uses a JSON Document Store instead of a traditional SQL database:
+- Analyses are stored in 'backend/analyses/{analysis_id}.json'.
+- Allows the mobile app to fetch the entire structural graph and use-case list in a single request.
+- Temporary clones are cleaned up after analysis.
+
+
+4. CORE API ENDPOINTS
+---------------------
+
+- /api/analyze/github (POST): Clones a repo and runs the full pipeline.
+- /api/analysis/{id}/graph (GET): Returns the NetworkX-compatible graph.
+- /api/analysis/{id}/use-cases (GET): Returns structured actors and use cases.
+- /api/analysis/{id}/explain-element (POST): Explains a specific class/method.
+- /api/analysis/{id}/execution-flow (POST): Traces and explains the call path.
+
+
+5. TECHNOLOGY STACK
+-------------------
+- Framework: FastAPI (Python 3.10+)
+- Graph Theory: NetworkX
+- Code Parsing: Python ast, Tree-sitter
+- AI Integration: Groq SDK (LLaMA 3)
+- Server: Uvicorn

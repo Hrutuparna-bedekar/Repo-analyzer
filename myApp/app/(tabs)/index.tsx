@@ -12,7 +12,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-
 export default function HomeScreen() {
   const [url, setUrl] = useState('https://github.com/pallets/flask');
   const [loading, setLoading] = useState(false);
